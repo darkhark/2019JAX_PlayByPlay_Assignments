@@ -60,9 +60,6 @@ prcomp_jax = data.frame(
     center = FALSE,
     scale. = FALSE
   )$x[, 1:2],
-  Name = rownames(jaxRunPlayByPlay),
-  Rank = jaxRunPlayByPlay$ydsnet,
-  Points = jaxRunPlayByPlay$yards_gained,
   Cluster = as.character(kmeans_jax_3$cluster),
   stringsAsFactors = FALSE
 )
@@ -234,9 +231,6 @@ prcomp_jax = data.frame(
     center = FALSE,
     scale. = FALSE
   )$x[, 1:2],
-  Name = rownames(jaxRunPlayByPlay),
-  Rank = jaxRunPlayByPlay$ydsnet,
-  Points = jaxRunPlayByPlay$yards_gained,
   Cluster = as.character(kmeans_jax_6$cluster),
   stringsAsFactors = FALSE
 )
