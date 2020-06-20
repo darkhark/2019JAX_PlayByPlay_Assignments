@@ -7,7 +7,7 @@ jaxRunOrPass = subset(jaxData, play_type == "run" | play_type == "pass")
 # Is entire column NA?
 jaxRunOrPass = jaxRunOrPass[, colSums(is.na(jaxRunOrPass)) != nrow(jaxRunOrPass)]
 
-# After row 55 is all probablilities. Don't care about those
+# After column 55 is all probablilities. Don't care about those
 jaxRunOrPass = jaxRunOrPass[c(0:55)]
 
 # Other columns that are not immediately useful for this data
@@ -31,7 +31,7 @@ jaxRunOrPass = subset(jaxRunOrPass, select = -c(desc, play_id, game_id, two_poin
 # }
 
 # Change columns to always be in the perspective of JAX.
-changeColumnsToRepresentJAX = function(df) {
+changeColumnsToRepresentJAXOrOPP = function(df) {
   for(row in 1:nrow(df)) {
     if (df[row, "home_team"] == "JAX") {
       df[row, "jax_score"] = df[row, "total_home_score"]
@@ -44,10 +44,12 @@ changeColumnsToRepresentJAX = function(df) {
       df[row, "jax_timeouts_remaining"] = df[row, "away_timeouts_remaining"]
       df[row, "opp_timeouts_remaining"] = df[row, "home_timeouts_remaining"]
     }
+    
     if (df[row, "side_of_field"] != "JAX" & df[row, "side_of_field"] != "MID") {
       levels(df$side_of_field) = c("JAX", "OPP")
       df[row, "side_of_field"] = "OPP"
     }
+    
     if (!is.na(df[row, "td_team"]) & df[row, "td_team"] != "JAX") {
       levels(df$td_team) = c("JAX", "OPP")
       df[row, "td_team"] = "OPP"
@@ -68,35 +70,39 @@ changeColumnsToRepresentJAX = function(df) {
     } else {
       df[row, "offensive_play"] = 0
     }
+  
+    # A little utside of the realm of this method, but while we're iterating through
+    # each row, might as well fix it here. 
+    # Categorize the drives as an early, mid, or late game drive
+    if (as.numeric(df[row, "drive"]) < 7) {
+      df[row, "drive"] = "Early"
+    } else if (as.numeric(df[row, "drive"]) >= 7 && as.numeric(df[row, "drive"]) < 15) {
+      df[row, "drive"] = "Mid"
+    } else {
+      df[row, "drive"] = "Late"
+    }
   }
+  
   df = subset(df, select = -c(total_away_score, total_home_score, defteam, posteam, posteam_type, home_timeouts_remaining,
                               away_timeouts_remaining, home_team, away_team))
   return(df)
 }
 
 #jaxRunOrPass = alterYardageForDefense(jaxRunOrPass)
-jaxRunOrPass = changeColumnsToRepresentJAX(jaxRunOrPass)
+jaxRunOrPass = changeColumnsToRepresentJAXOrOPP(jaxRunOrPass)
 
 write.csv(jaxRunOrPass, "jaxRunOrPassData.csv")
 
-jaxRun = subset(jaxRunOrPass, play_type == "run")
-jaxPass = subset(jaxRunOrPass, play_type == "pass")
-
-jaxRun = subset(jaxRun, select = -c(pass_length, pass_location, air_yards, yards_after_catch, play_type))
-jaxPass = subset(jaxPass, select = -c(run_location, run_gap, play_type))
-
-jaxRun = subset(jaxRun, !is.na(run_location))
-
+jaxRun = subset(jaxRunOrPass, play_type == "run" & !is.na(run_location), select = -c(pass_length, pass_location, air_yards, yards_after_catch, play_type))
+jaxPass = subset(jaxRunOrPass, play_type == "pass" & !is.na(pass_length), select = -c(run_location, run_gap, play_type))
 addCenterAsGap = function(df) {
   for (row in 1:nrow(df)) {
-    if (!is.na(df[row, "run_location"]) & df[row, "run_location"] == "middle" & is.na(df[row, "run_gap"])) {
-      df[row, "run_gap"] = 3
+    if (df[row, "run_location"] == "middle" & is.na(df[row, "run_gap"])) {
+      df[row, "run_gap"] = "center"
     }
   }
   return(df)
 }
-
-jaxRun = addCenterAsGap(jaxRun)
 
 # Makes yards after catch -1 if the pass was not caught
 makeMissedPassesNegative = function(df) {
@@ -108,46 +114,16 @@ makeMissedPassesNegative = function(df) {
   return(df)
 }
 
+jaxRun = addCenterAsGap(jaxRun)
 jaxPass = makeMissedPassesNegative(jaxPass)
 
-# Conert to purely numerical
-convertRun = function(df) {
-  for (row in 1:nrow(df)) {
-    if (df[row, "side_of_field"] == "OPP") {
-      df[row, "side_of_field"] = 0
-    } else if (df[row, "side_of_field"] == "MID") {
-      df[row, "side_of_field"] = 1
-    } else if (df[row, "side_of_field"] == "JAX") {
-      df[row, "side_of_field"] = 2
-    }
-    
-    if (df[row, "game_half"] == "Half1") {
-      df[row, "game_half"] = 1
-    } else if (df[row, "game_half"] == "Half2") {
-      df[row, "game_half"] = 2
-    }
-    
-    if (df[row, "run_location"] == "left") {
-      df[row, "run_location"] = 0
-    } else if (df[row, "run_location"] == "middle") {
-      df[row, "run_location"] = 1
-    } else if (df[row, "run_location"] == "right") {
-      df[row, "run_location"] = 2
-    }
-    
-    if (df[row, "run_gap"] == "end") {
-      df[row, "run_gap"] = 0
-    } else if (df[row, "run_gap"] == "tackle") {
-      df[row, "run_gap"] = 1
-    } else if (df[row, "run_gap"] == "guard") {
-      df[row, "run_gap"] = 2
-    }
-  }
-  return(df)
-}
+jaxRunDefense = subset(jaxRun, offensive_play == 0, select = -c(offensive_play))
+jaxPassDefense = subset(jaxPass, offensive_play == 0, select = -c(offensive_play))
 
-jaxRun = convertRun(jaxRun)
+jaxPassDefense = fastDummies::dummy_cols(jaxPassDefense, remove_first_dummy = TRUE, select_columns=c("side_of_field",
+                                         "game_half", "drive", "qtr", "down", "pass_length",
+                                         "pass_location", "td_team"))
 
-write.csv(jaxRun, "jaxRunData.csv")
-write.csv(jaxPass, "jaxPassData.csv")
-
+# Remove columns that the dummy variables represent
+jaxPassDefense = subset(jaxPassDefense, select = -c(side_of_field, game_half, drive, qtr, down, pass_length, 
+                                                    pass_location, td_team))
