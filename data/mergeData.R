@@ -71,7 +71,7 @@ changeColumnsToRepresentJAXOrOPP = function(df) {
       df[row, "offensive_play"] = 0
     }
   
-    # A little utside of the realm of this method, but while we're iterating through
+    # A little outside of the realm of this method, but while we're iterating through
     # each row, might as well fix it here. 
     # Categorize the drives as an early, mid, or late game drive
     if (as.numeric(df[row, "drive"]) < 7) {
@@ -127,3 +127,5 @@ jaxPassDefense = fastDummies::dummy_cols(jaxPassDefense, remove_first_dummy = TR
 # Remove columns that the dummy variables represent
 jaxPassDefense = subset(jaxPassDefense, select = -c(side_of_field, game_half, drive, qtr, down, pass_length, 
                                                     pass_location, td_team))
+
+write.csv(jaxPassDefense, "jaxPassDefense.csv")
