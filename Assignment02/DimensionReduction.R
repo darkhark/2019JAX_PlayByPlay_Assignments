@@ -1,43 +1,56 @@
 # Assignemnt 2 - Dimension Reduction Set Assignment 02 as wd
+set.seed(32)
+jaxPassDefense_ALL = read.csv("../data/jaxPassDefense.csv", stringsAsFactors = FALSE)
 
-jaxPassDefense = read.csv("../data/jaxPassDefense.csv", stringsAsFactors = FALSE)
+# Order by quality as we want to see where the defense is strong and weak
+jaxPassDefense = jaxPassDefense_ALL[order(jaxPassDefense_ALL$Quality, decreasing = TRUE),]
 
-# Remove added column
-jaxPassDefense = subset(jaxPassDefense, select = -c(X))
-
-# Order by yards gained as we want to see where the defense is strong and weak and
-# this will likely be the best metric
-jaxPassDefense = jaxPassDefense[order(jaxPassDefense$yards_gained, decreasing = TRUE),]
-
-# Remove target variable
-# jaxPassDefense = subset(jaxPassDefense, select = -c(yards_gained))
-
-# The above was removed from execution because the yards gained is not the target variable
-# like I considered. Instead, the target variable is more unknown. The idea of the target
-# is to witness where weak, intermediate, and strong points in the defense are. We do not 
-# know the number of weak points in pass defense, so we do not know how many possible clusters
-# there are. Weaknesses could range from the the time of the game to the location of the 
-# pass and everywhere in-between. We do not know when players way give less effort or is there
-# is a consistence player giving up passes in certain scenarios. 
+# Remove added column and target variable
+y = jaxPassDefense$Quality
+jaxPassDefense = subset(jaxPassDefense, select = -c(X, Quality))
 
 # Scale the variables we have. We don't want seconds becoming a significant factor 
 # just because it has large values
 jaxPassDefense_scaled = scale(jaxPassDefense)
 
-# Apparently the QB will always drop back for a pass by. I thought maybe a quick snap and throw
+# Apparently the QB will always drop back for a pass. I thought maybe a quick snap and throw
 # would not be considered a dropback but I was wrong. Also, I forgot to remove qb scramble.
 # When the qb scrambles, it is then a run play. We will remove these two columns since 
 # they do not change.
-jaxPassDefense_scaled = subset(jaxPassDefense_scaled, select = -c(qb_dropback, qb_scramble))
+# Also, no safeties scored for the defense so we'll remove that.
+jaxPassDefense_scaled = subset(jaxPassDefense, select = -c(qb_dropback, qb_scramble, safety))
 jaxPassDefense_PC = prcomp(jaxPassDefense_scaled)
 
 # Looking at PC1, we can see a lot of negative values when it comes to the late game. It also
 # made me realize many of the variables are tracking the same thing (drive, seconds left,
 # half seconds left, qtr, etc.). I'm going to remove a few of these in hopes that it can
 # give us more insight into other possible factors.
-jaxPassDefense_scaled = subset(jaxPassDefense_scaled, select = -c(half_seconds_remaining,
-                                                                  game_seconds_remaining,
-                                                                  drive_Late, drive_Mid))
+jaxPassDefense = subset(jaxPassDefense, select = -c(half_seconds_remaining, 
+                                                    game_seconds_remaining,
+                                                    drive_Late, drive_Mid, 
+                                                    qb_dropback, qb_scramble, safety,
+                                                    game_half_Half2, incomplete_pass))
+
+normalizeColumn = function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+
+normalizeData = function() {
+  for(col in 1:ncol(jaxPassDefense)) {
+    jaxPassDefense[col] = normalizeColumn(jaxPassDefense[col])
+  }
+  return(jaxPassDefense)
+}
+
+jaxPassDefense_scaled = normalizeData()
+
+plot(
+  x = jaxPassDefense$yards_gained
+)
+
+plot(
+  x = jaxPassDefense_scaled$yards_gained
+)
 
 jaxPassDefense_PC = prcomp(jaxPassDefense_scaled)
 jaxPassDefense_PC
@@ -51,8 +64,8 @@ biplot(jaxPassDefense_PC)
 require("ggfortify")
 autoplot(
   object = jaxPassDefense_PC,
-  data = jaxPassDefense,
-  colour = "yards_gained"
+  data = jaxPassDefense_ALL,
+  colour = "Quality"
 )
 
 factoextra::fviz_eig(jaxPassDefense_PC)
@@ -70,10 +83,9 @@ factoextra::fviz_pca_var(
   repel = TRUE
 )
 
-# Using this, we can see that the only variance above double digits is PC1. To get to 90%
-# cumulative variance we would need the first 18 dimensions, which is a reduction of 
-# 11 dimensions(~40% of the total dimensions).
 factoextra::get_eigenvalue(jaxPassDefense_PC)
+# Using this, we can see that the only variance above double digits is PC1. To get to 90%
+# cumulative variance we would need the first 14 dimensions, a reduction of 16 variables, or 53%
 
 jaxPassDefense_get_vars = factoextra::get_pca_var(jaxPassDefense_PC)
 jaxPassDefense_get_vars$coord
@@ -84,5 +96,73 @@ jaxPassDefense_get_ind = factoextra::get_pca_ind(jaxPassDefense_PC)
 head(jaxPassDefense_get_ind$coord)
 head(jaxPassDefense_get_ind$cos2)
 head(jaxPassDefense_get_ind$contrib)
+ 
+################ t-SNE -> t- distributed stochastic Neighbor Embedding ############
+require("Rtsne")
+#seed set above
+jaxPassDefense_tsne = Rtsne::Rtsne(jaxPassDefense_scaled)
 
-################ t-DSNE -> t- distributed stochastic Neighbor Embedding############
+plot(
+  jaxPassDefense_tsne$Y,
+  col = y,
+  pch = as.character(y),
+  main = "Scatter Plot of Jax Pass Defense T-SNE Two Dimensions"
+)
+
+jaxPassDefense_prcomp = prcomp(
+  x = jaxPassDefense_scaled,
+  scale. = TRUE,
+  center = TRUE,
+  rank = 2
+)
+
+plot(
+  jaxPassDefense_prcomp$x[,1:2],
+  col = y,
+  pch = as.character(y),
+  main = "Scatter Plot of Jax Pass Defense PCA Two Dimensions"
+)
+
+jaxPassDefense_tsne2 = Rtsne::Rtsne(
+  X = jaxPassDefense_scaled,
+  dims = 2, 
+  PCA = FALSE,
+  max_iter = 2000,
+  perplexity = 60
+)
+
+plot(jaxPassDefense_tsne2$costs)
+
+plot(
+  jaxPassDefense_tsne2$Y,
+  col = y,
+  pch = as.character(y),
+  main = "Scatter Plot of Jax Pass Defense T-SNE Two Dimensions"
+)
+
+############ Non-negative matrix ##################
+options(scipen = 1, digits = 2)
+jaxPassDefense_nmf = NMF::nmf(
+  x = jaxPassDefense_scaled,
+  rank = 2,
+  seed = 32
+)
+
+jaxPassDefense_nmf
+
+jaxPassDefense_basis = NMF::basis(jaxPassDefense_nmf)
+jaxPassDefense_coef = NMF::coef(jaxPassDefense_nmf)
+
+dim(jaxPassDefense_scaled)
+dim(jaxPassDefense_basis)
+dim(jaxPassDefense_coef)
+
+round(head(jaxPassDefense_basis), 3)
+
+round(head(jaxPassDefense_coef), 3)
+
+plot(
+  x = jaxPassDefense_basis,
+  col = y,
+  pch = as.character(y)
+)
