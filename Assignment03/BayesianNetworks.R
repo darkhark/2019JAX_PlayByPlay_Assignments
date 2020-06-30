@@ -20,7 +20,7 @@ jaxPassDefense_scaled[, numericColumns] = lapply(jaxPassDefense_scaled[, numeric
 # make values discrete
 summary(jaxPassDefense_scaled)
 
-jaxPassDefense_scaled_generalDiscrete = discretize(jaxPassDefense_scaled)
+jaxPassDefense_scaled_generalDiscrete = discretize(jaxPassDefense_scaled, breaks = 4, ordered = TRUE, method = "interval")
 # discretize the data using three methods
 # Quantile and hartemink caused errors no matter the number of breaks.
 jaxPassDefense_scaled_discretized = lapply(
@@ -174,3 +174,27 @@ networkScoresDF
 graphviz.plot(
   bnlearnList[[1]][[1]]
 )
+
+jaxDF = data.frame(jaxPassDefense_scaled_discretized)
+colnames(jaxDF) = colnames(jaxPassDefense_scaled_generalDiscrete)
+jaxDF
+
+jaxPassDefense_scored_arcStrength = arc.strength(
+  x = bnlearnList[[1]][[1]],
+  data = data.frame(jaxDF)
+)
+strength.plot(
+  x = bnlearnList[[1]][[1]],
+  strength = jaxPassDefense_scored_arcStrength
+)
+
+###### Predict target variable ############
+# Obtain y value
+jaxPassDefense_ALL = read.csv("../data/jaxPassDefense.csv", stringsAsFactors = FALSE)
+jaxPassDefense = jaxPassDefense_ALL[order(jaxPassDefense_ALL$Quality, decreasing = TRUE),]
+y = jaxPassDefense$Quality
+
+require(forecast)
+jaxPassDefense_training = jaxPassDefense_scaled[0:450, , drop = FALSE]
+jaxPassDefense_test = jaxPassDefense_scaled[450:514, , drop = FALSE]
+jaxPassDefense_training_model = hc(jaxPassDefense_training)
