@@ -44,6 +44,8 @@ normalizeData = function() {
 
 jaxPassDefense_scaled = normalizeData()
 
+write.csv(jaxPassDefense_scaled, "../data/jaxPassDefenseScaled.csv")
+
 plot(
   x = jaxPassDefense$yards_gained
 )
