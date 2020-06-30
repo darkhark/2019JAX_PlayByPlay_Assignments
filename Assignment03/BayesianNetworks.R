@@ -167,6 +167,9 @@ for(j in all4Algorithms) for(k in names(jaxPassDefense_scaled_discretized)) try(
 })
 
 networkScores
+networkScoresDF = data.frame(networkScores)
+networkScoresDF = networkScoresDF[order(networkScoresDF$interval, decreasing = TRUE), , drop = FALSE]
+networkScoresDF
 
 graphviz.plot(
   bnlearnList[[1]][[1]]
