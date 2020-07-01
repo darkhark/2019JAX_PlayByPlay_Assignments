@@ -171,9 +171,12 @@ networkScoresDF = data.frame(networkScores)
 networkScoresDF = networkScoresDF[order(networkScoresDF$interval, decreasing = TRUE), , drop = FALSE]
 networkScoresDF
 
-graphviz.plot(
+
+g1 = graphviz.plot(
   bnlearnList[[1]][[1]]
 )
+graph::nodeRenderInfo(g1) <- list(fill="lightgreen", fontsize=30)
+Rgraphviz::renderGraph(g1)
 
 jaxDF = data.frame(jaxPassDefense_scaled_discretized)
 colnames(jaxDF) = colnames(jaxPassDefense_scaled_generalDiscrete)
@@ -183,10 +186,13 @@ jaxPassDefense_scored_arcStrength = arc.strength(
   x = bnlearnList[[1]][[1]],
   data = data.frame(jaxDF)
 )
-strength.plot(
+strengthplot = strength.plot(
   x = bnlearnList[[1]][[1]],
-  strength = jaxPassDefense_scored_arcStrength
+  strength = jaxPassDefense_scored_arcStrength,
 )
+
+graph::nodeRenderInfo(strengthplot) <- list(fill="lightgreen", fontsize=30)
+Rgraphviz::renderGraph(strengthplot)
 
 ###### Predict target variable ############
 # Obtain y value
@@ -198,3 +204,9 @@ require(forecast)
 jaxPassDefense_training = jaxPassDefense_scaled[0:450, , drop = FALSE]
 jaxPassDefense_test = jaxPassDefense_scaled[450:514, , drop = FALSE]
 jaxPassDefense_training_model = hc(jaxPassDefense_training)
+
+qualityFit = bn.fit(
+  x = jaxPassDefense_training_model,
+  data = jaxPassDefense_test
+)
+
