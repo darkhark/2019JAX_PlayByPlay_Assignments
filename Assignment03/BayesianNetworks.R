@@ -201,9 +201,11 @@ jaxPassDefense_ALL = read.csv("../data/jaxPassDefense.csv", stringsAsFactors = F
 jaxPassDefense = jaxPassDefense_ALL[order(jaxPassDefense_ALL$Quality, decreasing = TRUE),]
 y = jaxPassDefense$Quality
 
-require(forecast)
-jaxPassDefense_training = jaxDF[50:514, , drop = FALSE]
-jaxPassDefense_test = jaxDF[0:49, , drop = FALSE]
+require(caTools)
+set.seed(32)
+sample = sample.split(jaxDF$yardline_100, SplitRatio = .75)
+jaxPassDefense_training = subset(jaxDF, sample == TRUE)
+jaxPassDefense_test = subset(jaxDF, sample == FALSE)
 jaxPassDefense_training_model = hc(jaxPassDefense_training)
 
 qualityFit = bn.fit(
@@ -216,4 +218,4 @@ trainingPredict
 require(caret)
 caret::confusionMatrix(trainingPredict, jaxPassDefense_training$first_down_pass)
 testPredict = predict(qualityFit, node = "first_down_pass", data = jaxPassDefense_test)
-caret::confusionMatrix(trainingPredict, jaxPassDefense_training$first_down_pass)
+caret::confusionMatrix(testPredict, jaxPassDefense_test$first_down_pass)
