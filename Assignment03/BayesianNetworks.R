@@ -124,7 +124,8 @@ strength.plot(
 )
 bnlearn::score(jaxPassDefense_local, jaxPassDefense_scaled_generalDiscrete)
 
-#### Try a different approach for undirected scores too
+#### Try a different approach for undirected scores #####################
+### Use normalized data ###
 all4Algorithms = c("hc", "iamb.fdr", "h2pc", "aracne")
 bnlearnList = list()
 
@@ -201,12 +202,18 @@ jaxPassDefense = jaxPassDefense_ALL[order(jaxPassDefense_ALL$Quality, decreasing
 y = jaxPassDefense$Quality
 
 require(forecast)
-jaxPassDefense_training = jaxPassDefense_scaled[0:450, , drop = FALSE]
-jaxPassDefense_test = jaxPassDefense_scaled[450:514, , drop = FALSE]
+jaxPassDefense_training = jaxDF[50:514, , drop = FALSE]
+jaxPassDefense_test = jaxDF[0:49, , drop = FALSE]
 jaxPassDefense_training_model = hc(jaxPassDefense_training)
 
 qualityFit = bn.fit(
   x = jaxPassDefense_training_model,
-  data = jaxPassDefense_test
+  data = jaxPassDefense_training
 )
 
+trainingPredict = predict(qualityFit, node = "first_down_pass", data = jaxPassDefense_training)
+trainingPredict
+require(caret)
+caret::confusionMatrix(trainingPredict, jaxPassDefense_training$first_down_pass)
+testPredict = predict(qualityFit, node = "first_down_pass", data = jaxPassDefense_test)
+caret::confusionMatrix(trainingPredict, jaxPassDefense_training$first_down_pass)
